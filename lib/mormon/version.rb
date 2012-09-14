@@ -1,0 +1,3 @@
+module Mormon
+  VERSION = "0.0.1"
+end
