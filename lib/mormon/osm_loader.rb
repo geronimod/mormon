@@ -1,14 +1,14 @@
 require 'nokogiri'
+require 'debugger'
 
 module Mormon
   module OSM
     class Loader
-      attr_reader :options, :routing, :rnodes, :tiles, :weights, :tilename, :tiledata,
-                  :route_types, :routeable_nodes
+      attr_reader :options, :routing
 
       def initialize(filename, options = {})
-        @options   = options
-        @tiles     = {}
+        @options = options
+        @tiles   = {}
         
         @routing = {}
         @routeable_nodes = {}
@@ -21,16 +21,17 @@ module Mormon
 
         @nodes = {}
         @ways  = []
-        @tags  = {}
-        @store_map = options[:store_map]
+        
+        @store_map = !!options[:store_map]
         
         @weights   = Mormon::Weight.weightings
         @tilename  = Mormon::Tile::Name.new
         @tiledata  = Mormon::Tile::Data.new
 
-        parse options[:file] if options[:file]
+        parse filename
       end
 
+      # @unused: load the specific area instead an osm file
       def load_area(lat, lon)
         if options[:file]
           puts "The %s file was already loaded" % options[:file]
@@ -39,15 +40,15 @@ module Mormon
         
         # Download data in the vicinity of a lat/long
         z = Mormon::Tile::Data.download_level
-        (x,y) = self.tilename.xy(lat, lon, z)
+        (x,y) = @tilename.xy(lat, lon, z)
 
         tile_id = '%d,%d' % [x, y]
         
-        return if tiles[tile_id]
+        return if @tiles[tile_id]
         
-        tiles[tile_id] = true
+        @tiles[tile_id] = true
         
-        filename = self.tiledata.get_osm(z, x, y)
+        filename = @tiledata.get_osm(z, x, y)
         # print "Loading %d,%d at z%d from %s" % (x,y,z,filename)
         
         parse filename
@@ -63,36 +64,25 @@ module Mormon
         
         osm = Nokogiri::XML(File.open(filename))
         
-
-        osm.css('node way relation').each do |node|
-          @tags = {}
-          @waynodes = []
-          debugger
-          # id = int(attrs.get('id'))
-          # lat = float(attrs.get('lat'))
-          # lon = float(attrs.get('lon'))
-          # self.nodes[id] = (lat,lon)
+        osm.css('node').each do |node|
+          @nodes[node[:id]] = {
+            lat: node[:lat].to_f,
+            lon: node[:lon].to_f,
+            tags: {}
+          }
+          
+          node.css('tag').each do |t| 
+            @nodes[node[:id]][:tags][t[:k]] = t[:v] unless t[:k] == :created_by
+          end
         end
 
-        # if name in('node','way','relation'):
-        #   self.tags = {}
-        #   self.waynodes = []
-        #   if name == 'node':
-        #     """Nodes need to be stored"""
-        #     id = int(attrs.get('id'))
-        #     lat = float(attrs.get('lat'))
-        #     lon = float(attrs.get('lon'))
-        #     self.nodes[id] = (lat,lon)
-        # elif name == 'nd':
-        #   """Nodes within a way -- add them to a list"""
-        #   self.waynodes.append(int(attrs.get('ref')))
-        # elif name == 'tag':
-        #   """Tags - store them in a hash"""
-        #   k,v = (attrs.get('k'), attrs.get('v'))
-        #   if not k in ('created_by'):
-        #     self.tags[k] = v
+        osm.css('way').each do |way|
+          @ways[]
+        end
 
-
+        osm.css('tag').each do |tag|
+          @tags[tag[:k]] = tag[:v] unless tag[:k] == :created_by
+        end
 
 
       end
