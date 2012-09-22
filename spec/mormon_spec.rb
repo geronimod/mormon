@@ -39,6 +39,7 @@ end
 describe Mormon::OSM::Loader do
   before :each do
     @loader = Mormon::OSM::Loader.new File.dirname(__FILE__) + "/spec.osm"
+    puts @loader.report
   end
 
   it "should load tiles of osm file" do

@@ -8,7 +8,13 @@ module Mormon
 
       def initialize(filename, options = {})
         @options = options
-        @tiles   = {}
+
+        @tiles = {}
+        @nodes = {}
+        @ways  = {}
+        
+        @store_map   = options[:store_map] if options[:store_map]
+        @store_map ||= true 
         
         @routing = {}
         @routeable_nodes = {}
@@ -19,12 +25,6 @@ module Mormon
           @routeable_nodes[type] = {}
         end
 
-        @nodes = {}
-        @ways  = []
-        
-        @store_map = !!options[:store_map]
-        
-        @weights   = Mormon::Weight.weightings
         @tilename  = Mormon::Tile::Name.new
         @tiledata  = Mormon::Tile::Data.new
 
@@ -63,91 +63,117 @@ module Mormon
         end
         
         osm = Nokogiri::XML(File.open(filename))
-        
-        osm.css('node').each do |node|
-          @nodes[node[:id]] = {
+
+        load_nodes osm
+        load_ways osm
+      end
+
+      def load_nodes(nokosm)
+        nokosm.css('node').each do |node|
+          node_id = node[:id]
+          
+          @nodes[node_id] = {
             lat: node[:lat].to_f,
             lon: node[:lon].to_f,
             tags: {}
           }
           
-          node.css('tag').each do |t| 
-            @nodes[node[:id]][:tags][t[:k]] = t[:v] unless t[:k] == :created_by
+          node.css('tag').each do |t|
+            k,v = t[:k].to_sym, t[:v]
+            @nodes[node_id][:tags][k] = v unless useless_tags.include?(k)
           end
         end
-
-        osm.css('way').each do |way|
-          @ways[]
-        end
-
-        osm.css('tag').each do |tag|
-          @tags[tag[:k]] = tag[:v] unless tag[:k] == :created_by
-        end
-
-
       end
-  
-      def store_way(way_id, tags, nodes)
-        highway = equivalent tags[:highway]
-        railway = equivalent tags[:railway]
-        oneway  = tags[:oneway]
-        reversible = !['yes','true','1'].include?(oneway)
+      private :load_nodes
 
-        # Calculate what vehicles can use this route
-        # TODO: just use getWeight != 0
+      def load_ways(nokosm)
+        nokosm.css('way').each do |way|
+          way_id = way[:id]
+          
+          @ways[way_id] = {
+            nodes: way.css('nd').map { |nd| nd[:ref] },
+            tags: {}
+          }
+          
+          way.css('tag').each do |t|
+            k,v = t[:k].to_sym, t[:v]
+            @ways[way_id][:tags][k] = v unless useless_tags.include?(k)
+          end
+
+          store_way @ways[way_id]
+        end
+      end
+      private :load_ways
+
+      def useless_tags
+        [:created_by]
+      end
+      private :useless_tags
+  
+      def way_access(highway, railway)
         access = {}
         access[:cycle] = [:primary, :secondary, :tertiary, :unclassified, :minor, :cycleway, 
-                          :residential, :track, :service].include? highway
+                          :residential, :track, :service].include? highway.to_sym
         
-        access[:car] = [:motorway, :trunk, :primary, :secondary, :tertiary, 
-                        :unclassified, :minor, :residential, :service].include? highway
+        access[:car]   = [:motorway, :trunk, :primary, :secondary, :tertiary, 
+                          :unclassified, :minor, :residential, :service].include? highway.to_sym
         
-        access[:train] = [:rail, :light_rail, :subway].include? railway
-        access[:foot]  = access[:cycle] || [:footway, :steps].include?(highway)
-        access[:horse] = [:track, :unclassified, :bridleway].include? highway
+        access[:train] = [:rail, :light_rail, :subway].include? railway.to_sym
+        access[:foot]  = access[:cycle] || [:footway, :steps].include?(highway.to_sym)
+        access[:horse] = [:track, :unclassified, :bridleway].include? highway.to_sym
+        access
+      end
+      private :way_access
 
-        # i don't know what is the node 41 maybe an exception in pyroute lib
-        if (way_id == 41)
-          puts nodes
-          exit 0
-        end
+      def store_way(way)
+        tags = way[:tags]
+
+        highway    = equivalent tags.fetch(:highway, "")
+        railway    = equivalent tags.fetch(:railway, "")
+        oneway     = tags.fetch(:oneway, "")
+        reversible = !['yes','true','1'].include?(oneway)
+        
+        access = way_access highway, railway
 
         # Store routing information
-        last = Array.new(3)
-
-        nodes.each do |node|
-          node_id, x, y = node
-          
-          if last[0]
-            if access[self.transport]
-              weight = self.weights.get(self.transport, highway)
-              
-              add_link(last[0], node_id, weight)
-              make_node_routeable(last)
-
-              if reversible or self.transport == 'foot'
-                add_link(node_id, last[0], weight)
-                make_node_routeable(node)
-              end
+        last = -1
+        way[:nodes].each do |node|
+          if last != -1
+            @route_types.each do |route_type|
+              if access[route_type]
+                weight = Mormon::Weight.get route_type, highway.to_sym
+                add_link(last, node, route_type, weight)
+                add_link(node, last, route_type, weight) if reversible || route_type == :foot
+              end  
             end
           end
-
           last = node
         end
       end
 
-      def make_node_routeable(node)
-        self.rnodes[node[0]] = [node[1], node[2]]
+      def routeable_from(node, route_type)
+        @routeable_nodes[route_type][node] = 1
       end
 
-      def add_link(fr, to, weight = 1)
-        return if self.routing[fr].keys.include?(to)
-        self.routing[fr] ||= { to: weight }
-        self.routing[fr][to] = weight
-      end          
+      def add_link(fr, to, route_type, weight = 1)
+        routeable_from fr, route_type
+        return if @routing[route_type][fr].keys.include?(to)
+        @routing[route_type][fr][to] = weight
+      rescue
+        @routing[route_type][fr] = { to => weight }
+      end
+
+      def way_type(tags)
+        # Look for a variety of tags (priority order - first one found is used)
+        [:highway, :railway, :waterway, :natural].each do |type|
+          value = tags.fetch(type, '')
+          return equivalent(value) if value
+        end
+        nil
+      end
 
       def equivalent(tag)
-        map = {
+        { 
           primary_link:   "primary",
           trunk:          "primary",
           trunk_link:     "primary",
@@ -166,8 +192,7 @@ module Mormon
           riverbank:      "river",
           lake:           "river",
           light_rail:     "railway"
-        }
-        map[tag] || tag
+        }[tag] || tag
       end
     
       def find_node(lat, lon)
@@ -193,9 +218,14 @@ module Mormon
       end
       
       def report
-        # Display some info about the loaded data
-        puts "Loaded %d nodes" % self.rnodes.keys().size
-        puts "Loaded %d %s routes" % [self.routing.keys().size, self.transport]
+        report = "Loaded %d nodes,\n" % @nodes.keys.size
+        report += "%d ways, and...\n" % @ways.keys.size
+        
+        @route_types.each do |type|
+          report += " %d %s routes\n" % [@routing[type].keys.size, type]
+        end
+
+        report
       end
     end
   end
