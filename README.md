@@ -3,8 +3,8 @@ Mormon
 
 OSM Routing in Ruby, based on pyroutelib2
 
-Ussage
-------
+Usage
+=====
 
       osm_loader = Mormon::OSM::Loader.new "path/to/file.osm"
       osm_router = Mormon::OSM::Router.new osm_loader
