@@ -39,16 +39,44 @@ end
 describe Mormon::OSM::Loader do
   before :each do
     @loader = Mormon::OSM::Loader.new File.dirname(__FILE__) + "/spec.osm"
-    puts @loader.report
   end
 
-  it "should load tiles of osm file" do
-    # @loader.ways.size.should eq(100)
-    # @loader.load_area(-37.335867, -59.1230239)
-    # @loader.report
-    # @loader.find_node(-37.335867, -59.1230239)
+  it "should load the correct data" do
+    @loader.nodes.keys.size.should eq 534
+    @loader.ways.keys.size.should  eq 135
+    
+    @loader.routing[:cycle].keys.size.should eq 240
+    @loader.routing[:car].keys.size.should   eq 240
+    @loader.routing[:train].keys.size.should eq 0
+    @loader.routing[:foot].keys.size.should  eq 281
+    @loader.routing[:horse].keys.size.should eq 216
+  end
 
+  it "should has the correct nodes" do
+    map = { "448193026" => 1, "448193243" => 1, "448193220" => 1, "318099173" => 1 }
+    @loader.routing[:foot]["448193024"].should eq(map)
   end
 end
 
+describe Mormon::OSM::Router do
+  before :each do
+    @loader = Mormon::OSM::Loader.new File.dirname(__FILE__) + "/spec.osm"
+    @router = Mormon::OSM::Router.new @loader
+  end
 
+  it "should do the routing without problems" do
+    response, route = @router.find_route 448193311, 453397968, :car
+    response.should eq "success"
+    route.should eq [
+      [-37.322900199999999, -59.1277355], 
+      [-37.3234584, -59.1292045], 
+      [-37.324045300000002, -59.130744], 
+      [-37.324662600000003, -59.132366099999999], 
+      [-37.325214799999998, -59.133816899999999], 
+      [-37.3263769, -59.133125100000001], 
+      [-37.327769600000003, -59.132296199999999], 
+      [-37.328298599999997, -59.133707200000003], 
+      [-37.328858799999999, -59.135200400000002]
+    ]
+  end
+end

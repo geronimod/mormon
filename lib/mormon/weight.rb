@@ -1,5 +1,6 @@
 module Mormon
   class Weight
+    # Represents an hipotetical velocity of the transport in the way type
     @weightings = {
       motorway:     { car: 10 },
       trunk:        { car: 10, cycle: 0.05 },
