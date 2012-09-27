@@ -1,5 +1,4 @@
 require 'nokogiri'
-require 'debugger'
 
 module Mormon
   module OSM
