@@ -235,7 +235,8 @@ module Mormon
             canal:          "river",
             riverbank:      "river",
             lake:           "river",
-            light_rail:     "railway"
+            light_rail:     "railway",
+            living_street:  "unclassified"
           }[tag.to_sym] || tag
         end
       
