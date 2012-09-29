@@ -1,9 +1,20 @@
 require 'nokogiri'
+require 'tmpdir'
 
 module Mormon
   module OSM
     class Loader
-      attr_reader :options, :routing, :nodes, :ways, :tiles, :routeable_nodes, :route_types
+      
+      @route_types = [:cycle, :car, :train, :foot, :horse]
+      @cache_dir   = File.join Dir.tmpdir, "mormon", "cache"
+      
+      class << self
+        attr_reader   :route_types
+        attr_accessor :cache_dir
+      end
+      
+      attr_reader :options, :routing, :nodes, :ways, :tiles, :routeable_nodes, :route_types,
+                  :osm_filename
 
       def initialize(filename, options = {})
         @options = options
@@ -14,9 +25,8 @@ module Mormon
         
         @routing = {}
         @routeable_nodes = {}
-        @route_types = [:cycle, :car, :train, :foot, :horse]
 
-        @route_types.each do |type|
+        Loader.route_types.each do |type|
           @routing[type] = {}
           @routeable_nodes[type] = {}
         end
@@ -24,35 +34,87 @@ module Mormon
         # @tilename  = Mormon::Tile::Name.new
         # @tiledata  = Mormon::Tile::Data.new
 
-        parse filename
-      end
-
-      def parse(filename)
-        puts "Loading %s.." % filename
-        
-        if !File.exists?(filename)
-          print "No such data file %s" % filename
-          return false
-        end
-        
-        osm = Nokogiri::XML(File.open(filename))
-
-        load_nodes osm
-        load_ways osm
+        @osm_filename = filename
+        @options[:cache] ? load_cached : parse
       end
 
       def report
         report = "Loaded %d nodes,\n" % @nodes.keys.size
         report += "%d ways, and...\n" % @ways.keys.size
         
-        @route_types.each do |type|
+        Loader.route_types.each do |type|
           report += " %d %s routes\n" % [@routing[type].keys.size, type]
         end
 
         report
       end
 
+      def cache_filename
+        File.join Loader.cache_dir, File.basename(@osm_filename) + ".pstore"
+      end
+      
       private
+        def load_cached
+          require "pstore"
+            
+          store_path = cache_filename
+
+          FileUtils.mkdir_p Loader.cache_dir
+          FileUtils.touch store_path
+          
+          store = PStore.new store_path
+          
+          if !File.zero? store_path
+            puts "Loading from cache %s..." % store.path
+
+            store.transaction(true) do
+              @tiles = store[:tiles]
+              @nodes = store[:nodes]
+              @ways  = store[:ways]
+              @tiles = store[:tiles]
+
+              Loader.route_types.each do |type|
+                @routing[type]         = store[:routing][type]
+                @routeable_nodes[type] = store[:routeable_nodes][type]
+              end
+            end
+          
+          else
+            puts "Parsing %s..." % @osm_filename
+            parse
+
+            puts "Creating cache %s..." % store.path
+            store.transaction do
+              store[:tiles] = @tiles
+              store[:nodes] = @nodes
+              store[:ways]  = @ways  
+              store[:tiles] = @tiles
+
+              store[:routing]         = {}
+              store[:routeable_nodes] = {}
+
+              Loader.route_types.each do |type|
+                store[:routing][type]         = @routing[type]
+                store[:routeable_nodes][type] = @routeable_nodes[type]
+              end
+            end
+          end
+
+        end
+
+        def parse
+          puts "Loading %s.." % @osm_filename
+          
+          if !File.exists?(@osm_filename)
+            print "No such data file %s" % @osm_filename
+            return false
+          end
+          
+          osm = Nokogiri::XML File.open(@osm_filename)
+
+          load_nodes osm
+          load_ways osm
+        end
 
         def load_nodes(nokosm)
           nokosm.css('node').each do |node|
@@ -121,7 +183,7 @@ module Mormon
           last = -1
           way[:nodes].each do |node|
             if last != -1
-              @route_types.each do |route_type|
+              Loader.route_types.each do |route_type|
                 if access[route_type]
                   weight = Mormon::Weight.get route_type, highway.to_sym
                   add_link(last, node, route_type, weight)

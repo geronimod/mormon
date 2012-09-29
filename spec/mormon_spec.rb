@@ -1,5 +1,6 @@
 require 'spec_helper'
 require 'mormon'
+require 'benchmark'
 
 describe Mormon::Weight do
   it "get (transport, way type) must to return a value" do
@@ -36,31 +37,64 @@ describe Mormon::Tile::Name do
   end
 end
 
+def spec_osm_file
+  File.join File.dirname(__FILE__), "spec.osm"
+end
+
 describe Mormon::OSM::Loader do
-  before :each do
-    @loader = Mormon::OSM::Loader.new File.dirname(__FILE__) + "/spec.osm"
-  end
-
-  it "should load the correct data" do
-    @loader.nodes.keys.size.should eq 534
-    @loader.ways.keys.size.should  eq 135
+  def common_specs(loader)
+    loader.nodes.keys.size.should eq 534
+    loader.ways.keys.size.should  eq 135
     
-    @loader.routing[:cycle].keys.size.should eq 240
-    @loader.routing[:car].keys.size.should   eq 240
-    @loader.routing[:train].keys.size.should eq 0
-    @loader.routing[:foot].keys.size.should  eq 281
-    @loader.routing[:horse].keys.size.should eq 216
+    loader.routing[:cycle].keys.size.should eq 240
+    loader.routing[:car].keys.size.should   eq 240
+    loader.routing[:train].keys.size.should eq 0
+    loader.routing[:foot].keys.size.should  eq 281
+    loader.routing[:horse].keys.size.should eq 216
   end
 
-  it "should has the correct nodes" do
-    map = { "448193026" => 1, "448193243" => 1, "448193220" => 1, "318099173" => 1 }
-    @loader.routing[:foot]["448193024"].should eq(map)
+  describe "whitout cache" do
+    before :each do
+      @loader = Mormon::OSM::Loader.new spec_osm_file
+    end
+
+    it "should load the correct data" do
+      common_specs @loader
+    end
+
+    it "should has the correct nodes" do
+      map = { "448193026" => 1, "448193243" => 1, "448193220" => 1, "318099173" => 1 }
+      @loader.routing[:foot]["448193024"].should eq(map)
+    end
   end
+
+  describe "with cache" do
+    it "should exists the cached version" do
+      @loader = Mormon::OSM::Loader.new spec_osm_file, :cache => true
+      File.exists?(@loader.cache_filename).should eq true
+      File.zero?(@loader.cache_filename).should eq false
+    end
+
+    it "should have stored the same data" do
+      @without_cache = Mormon::OSM::Loader.new spec_osm_file
+      @with_cache    = Mormon::OSM::Loader.new spec_osm_file, :cache => true
+
+      common_specs @without_cache
+      common_specs @with_cache
+
+      @without_cache.nodes.should eq @with_cache.nodes
+      @without_cache.ways.should  eq @with_cache.ways
+      @without_cache.routing.should eq @with_cache.routing
+      @without_cache.routeable_nodes.should eq @with_cache.routeable_nodes
+    end
+
+  end
+
 end
 
 describe Mormon::OSM::Router do
   before :each do
-    @loader = Mormon::OSM::Loader.new File.dirname(__FILE__) + "/spec.osm"
+    @loader = Mormon::OSM::Loader.new spec_osm_file
     @router = Mormon::OSM::Router.new @loader
   end
 
@@ -81,7 +115,7 @@ describe Mormon::OSM::Router do
   end
 
   it "should find the route in tandil map" do
-    @loader = Mormon::OSM::Loader.new File.dirname(__FILE__) + "/tandil.osm"
+    @loader = Mormon::OSM::Loader.new File.join(File.dirname(__FILE__), "tandil.osm")
     @router = Mormon::OSM::Router.new @loader
 
     response, route = @router.find_route 1355012894, 1527759159, :car
