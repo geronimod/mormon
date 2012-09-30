@@ -75,6 +75,14 @@ describe Mormon::OSM::Loader do
       File.zero?(@loader.cache_filename).should eq false
     end
 
+    it "should let change the cache dir" do
+      cache_dir = File.join File.dirname(__FILE__), "..", "cache"
+      Mormon::OSM::Loader.cache_dir = cache_dir
+      @loader = Mormon::OSM::Loader.new spec_osm_file, :cache => true
+      cache_filename = File.join Mormon::OSM::Loader.cache_dir, File.basename(spec_osm_file) + ".pstore"
+      @loader.cache_filename.should eq cache_filename
+    end
+
     it "should have stored the same data" do
       @without_cache = Mormon::OSM::Loader.new spec_osm_file
       @with_cache    = Mormon::OSM::Loader.new spec_osm_file, :cache => true
