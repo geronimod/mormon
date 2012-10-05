@@ -100,6 +100,20 @@ describe Mormon::OSM::Loader do
 end
 
 describe Mormon::OSM::Router do
+  it "should find the route if the params are strings" do
+    @loader = Mormon::OSM::Loader.new spec_osm_file
+    @router = Mormon::OSM::Router.new @loader
+
+    response, route = @router.find_route "448193278", 448193334, "car"
+    response.should eq "success"
+    route.should eq [
+      [-37.3211676, -59.1269871], 
+      [-37.3223495, -59.1262886], 
+      [-37.3229002, -59.1277355], 
+      [-37.3234584, -59.1292045], 
+      [-37.3246275, -59.1285124]
+    ]
+  end
 
   it "should do the routing without problems" do
     @loader = Mormon::OSM::Loader.new spec_osm_file

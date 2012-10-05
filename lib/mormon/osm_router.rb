@@ -22,7 +22,7 @@ module Mormon
       end
 
       def find_route(node_start, node_end, transport)
-        result, nodes = route(node_start, node_end, transport)
+        result, nodes = route(node_start.to_i, node_end.to_i, transport.to_sym)
         
         return [result,[]] if result != 'success'
         
