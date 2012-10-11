@@ -21,7 +21,7 @@ You probably wants to cache the parsed osm file:
       
       osm_loader = Mormon::OSM::Loader.new "path/to/filename.osm", :cache => true   
 
-The previous code generate a filename.pstore file and stored in Dir.tmpdir, "mormon", "cache" depending of your so, if you need to change the cache dir try ie:
+The previous code generate a filename.pstore file and it's stored in Dir.tmpdir, "mormon", "cache" depending of your so, if you need to change the cache dir try ie:
       
       cache_dir = File.join File.dirname(__FILE__), "cache"
       Mormon::OSM::Loader.cache_dir = cache_dir
