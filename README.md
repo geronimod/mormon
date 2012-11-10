@@ -37,7 +37,7 @@ The default algorithm is A* with weights, but a Random algorithm is available, i
       osm_router = Mormon::OSM::Router.new osm_loader, :algorithm => :random
       osm_router.find_route node_start, node_end, transport
 
-KNOWN ISSUE: the actual random algorithm has problems when the different between start and end is enough far, i'm working to fix it.
+**KNOWN ISSUE**: the actual random algorithm has problems when the different between start and end is enough far, i'm working to fix it.
 
 Breadth in Ramdom algorithm
 -----
