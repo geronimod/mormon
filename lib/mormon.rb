@@ -1,3 +1,4 @@
+require "mormon/string_ex"
 require "mormon/version"
 require "mormon/weight"
 require "mormon/tile_name"

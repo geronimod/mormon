@@ -240,52 +240,6 @@ module Mormon
           }[tag.to_sym] || tag
         end
       
-        # def find_node(lat, lon, route_type)
-        #   # find the nearest node that can be the start of a route
-        #   load_area(lat, lon)
-          
-        #   max_dist   = 1E+20
-        #   node_found = nil
-        #   pos_found  = nil
-          
-        #   rnodes.values.each do |node_id, pos|
-        #     dy = pos[0] - lat
-        #     dx = pos[1] - lon
-        #     dist = dx * dx + dy * dy
-            
-        #     if dist < maxDist
-        #       max_dist = dist
-        #       node_found = node_id
-        #       pos_found = pos
-        #     end
-            
-        #     node_found
-        #   end
-        # end
-        
-        # @unused: load the specific area instead an osm file
-        # def load_area(lat, lon)
-        #   if options[:file]
-        #     puts "The %s file was already loaded" % options[:file]
-        #     return
-        #   end
-          
-        #   # Download data in the vicinity of a lat/long
-        #   z = Mormon::Tile::Data.download_level
-        #   (x,y) = @tilename.xy(lat, lon, z)
-
-        #   tile_id = '%d,%d' % [x, y]
-          
-        #   return if @tiles[tile_id]
-          
-        #   @tiles[tile_id] = true
-          
-        #   filename = @tiledata.get_osm(z, x, y)
-        #   # print "Loading %d,%d at z%d from %s" % (x,y,z,filename)
-          
-        #   parse filename
-        # end
-    
     end
   end
 end

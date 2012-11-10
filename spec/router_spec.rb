@@ -1,102 +1,8 @@
 require 'spec_helper'
 require 'mormon'
 
-describe Mormon::Weight do
-  it "get (transport, way type) must to return a value" do
-    Mormon::Weight.get(:car, :primary).should eq(2)
-  end
-end
-
-describe Mormon::Tile::Data do
-  before :each do
-    @tiledata = Mormon::Tile::Data.new :reset_cache => true
-  end
-
-  xit "download a tile doesn't work at this moment because there is some wrong with the tiles url" do
-    @tiledata.get_osm(15, 16218, 10741).should match(/Tile not found/)
-  end
-end
-
-describe Mormon::Tile::Name do
-  before :each do
-    @tilename = Mormon::Tile::Name.new
-  end
-
-  it "should return the correct xy coordinates" do
-    @tilename.xy(51.50610, -0.119888, 16).should eq([32746, 21792])
-  end
-
-  it "should return the correct edges" do
-    x, y = @tilename.xy(51.50610, -0.119888, 16)
-    @tilename.edges(x, y, 16).should eq([51.505323411493336, -0.120849609375, 51.50874245880333, -0.1153564453125])
-  end
-
-  it "should return the correct url for the tile" do
-    @tilename.url(51.50610, -0.119888, 16, :tah).should eq("http://a.tile.openstreetmap.org/16/51/0.png")
-  end
-end
-
 def spec_osm_file
   File.join File.dirname(__FILE__), "spec.osm"
-end
-
-describe Mormon::OSM::Loader do
-  def common_specs(loader)
-    loader.nodes.keys.size.should eq 534
-    loader.ways.keys.size.should  eq 135
-    
-    loader.routing[:cycle].keys.size.should eq 240
-    loader.routing[:car].keys.size.should   eq 240
-    loader.routing[:train].keys.size.should eq 0
-    loader.routing[:foot].keys.size.should  eq 281
-    loader.routing[:horse].keys.size.should eq 216
-  end
-
-  describe "whitout cache" do
-    before :each do
-      @loader = Mormon::OSM::Loader.new spec_osm_file
-    end
-
-    it "should load the correct data" do
-      common_specs @loader
-    end
-
-    it "should has the correct nodes" do
-      map = { "448193026" => 1, "448193243" => 1, "448193220" => 1, "318099173" => 1 }
-      @loader.routing[:foot]["448193024"].should eq(map)
-    end
-  end
-
-  describe "with cache" do
-    it "should exists the cached version" do
-      @loader = Mormon::OSM::Loader.new spec_osm_file, :cache => true
-      File.exists?(@loader.cache_filename).should eq true
-      File.zero?(@loader.cache_filename).should eq false
-    end
-
-    it "should let change the cache dir" do
-      cache_dir = File.join File.dirname(__FILE__), "..", "cache"
-      Mormon::OSM::Loader.cache_dir = cache_dir
-      @loader = Mormon::OSM::Loader.new spec_osm_file, :cache => true
-      cache_filename = File.join Mormon::OSM::Loader.cache_dir, File.basename(spec_osm_file) + ".pstore"
-      @loader.cache_filename.should eq cache_filename
-    end
-
-    it "should have stored the same data" do
-      @without_cache = Mormon::OSM::Loader.new spec_osm_file
-      @with_cache    = Mormon::OSM::Loader.new spec_osm_file, :cache => true
-
-      common_specs @without_cache
-      common_specs @with_cache
-
-      @without_cache.nodes.should eq @with_cache.nodes
-      @without_cache.ways.should  eq @with_cache.ways
-      @without_cache.routing.should eq @with_cache.routing
-      @without_cache.routeable_nodes.should eq @with_cache.routeable_nodes
-    end
-
-  end
-
 end
 
 describe Mormon::OSM::Router do
@@ -137,10 +43,27 @@ describe Mormon::OSM::Router do
   it "should support random algorithm" do
     @loader = Mormon::OSM::Loader.new spec_osm_file
     @router = Mormon::OSM::Router.new @loader, :algorithm => :random
-    response, route = @router.find_route 448193311, 453397968, :car
-    p route
+    
+    response, route = @router.find_route 448193311, 448193334, :car
     response.should eq "success"
     route.size.should be > 1
+  end
+
+  it "should support change the breadth of random algorithm" do
+    @loader = Mormon::OSM::Loader.new spec_osm_file
+    @router = Mormon::OSM::Router.new @loader, :algorithm => :random
+    
+    @router.algorithm.breadth = 1
+    response, route = @router.find_route 448193311, 448193334, :car
+    response.should eq "success"
+    route.size.should be > 1
+
+    @router.algorithm.breadth = 3
+    response1, route1 = @router.find_route 448193311, 448193334, :car
+    response1.should eq "success"
+    route1.size.should be > 1
+
+    route.should_not eq route1
   end
 
   describe "with tandil.osm map" do
