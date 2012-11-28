@@ -3,16 +3,34 @@ Mormon
 
 OSM Routing in Ruby, based on pyroutelib2
 
-Usage
-=====
+Usage of OSM route
+==================
 
       osm_loader = Mormon::OSM::Loader.new "path/to/file.osm"
       osm_router = Mormon::OSM::Router.new osm_loader
       osm_router.find_route node_start, node_end, transport
 
 - Notes:
-  - trasnports: must be one in [:cycle, :car, :train, :foot, :horse]
-  - node_start and node_end must be node ids
+  - transports: must be one in [:cycle, :car, :train, :foot, :horse]
+  - node_start and node_end must be node ids associated with ways in osm (``<way ...> <nd ref="node_id"/</way>``)
+
+Usage of OSM distance optimizer
+================================
+
+      osm_loader = Mormon::OSM::Loader.new "path/to/file.osm"
+      osm_router = Mormon::OSM::Router.new osm_loader
+      route = osm_distance_optimizer.route_planer(*Array of Mormon::OSM::StopNode where at least node_id has value*, osm_loader)
+
+      - The route is a sorted array where each node is succeeded by the closest (not already visited). The stop nodes all have updated the distance value to represent the distance to the predecessor.
+      - The total distance of the route can be calculated by summing up all the distances
+
+- Notes
+  - All distances are measures in meters
+  - The calculation is not accurate:
+    - The calculation of latitude and longitude degrees are done by the algorithms from [http://en.wikipedia.org/wiki/Latitude](http://en.wikipedia.org/wiki/Latitude)
+    - The length of one degree is calculated as the average between latitude and longitude for simplicity as heading is not included. Which can be misleading in areas where the differences between these are high (close to the poles)
+    - In Denmark (11.000000,56.000000) this results in a margin of < 10 meters and together with gps-fixes this would be a estimated total of +/- 10%
+  - A route is considered an array of stops. The distance between stops (paths) is summed up by the distance between the OSM nodes.
 
 Caching
 =======
