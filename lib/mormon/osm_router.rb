@@ -1,6 +1,5 @@
 module Mormon
   module OSM
-    
     module Algorithm
       class Base
         def initialize(router, options = {})

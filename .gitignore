@@ -1,3 +1,5 @@
 .rvmrc
 cache
 lib/mormon/cache
+.idea/*
+.*~
