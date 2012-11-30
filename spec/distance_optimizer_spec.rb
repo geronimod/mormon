@@ -1,7 +1,7 @@
 require 'spec_helper'
 require 'mormon'
 
-def spec_osm_file
+def _spec_osm_file
   File.join File.dirname(__FILE__), "map.osm"
 end
 
@@ -98,7 +98,7 @@ describe Mormon::OSM::DistanceOptimizer do
 
   describe "Final result" do
     it "should have sorted the array and calculated the correct distances" do
-      loader = Mormon::OSM::Loader.new spec_osm_file
+      loader = Mormon::OSM::Loader.new _spec_osm_file
       stops = stops_for_test
       route = Mormon::OSM::DistanceOptimizer.route_planer(stops, loader)
 
