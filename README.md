@@ -57,7 +57,7 @@ The default algorithm is A* with weights, but a Random algorithm is available, i
 
 **KNOWN ISSUE**: the actual random algorithm has problems when the different between start and end is enough far, i'm working to fix it.
 
-Breadth in Ramdom algorithm
+Breadth in random algorithm
 -----
 
 The programming technique to find a random route is Backtracking, so in order to don't loop forever we need to narrow the search in neighbors, for that reason i use a breadth value combined with distance between start and end nodes:
