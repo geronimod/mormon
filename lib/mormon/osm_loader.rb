@@ -207,15 +207,6 @@ module Mormon
           @routing[route_type][fr] = { to => weight }
         end
 
-        def way_type(tags)
-          # Look for a variety of tags (priority order - first one found is used)
-          [:highway, :railway, :waterway, :natural].each do |type|
-            value = tags.fetch(type, '')
-            return equivalent(value) if value
-          end
-          nil
-        end
-
         def equivalent(tag)
           {
             primary_link:   "primary",
@@ -230,7 +221,6 @@ module Mormon
             driveway:       "service",
             pedestrian:     "footway",
             bridleway:      "cycleway",
-            track:          "cycleway",
             arcade:         "footway",
             canal:          "river",
             riverbank:      "river",
