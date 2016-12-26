@@ -15,6 +15,7 @@ module Mormon
       service:      { cycle: 1, car: 1, foot: 1, horse: 1 },
       bridleway:    { cycle: 0.8, foot: 1, horse: 10, mtb: 3 },
       footway:      { cycle: 0.2, foot: 1 },
+      path:         { foot: 1 },
       steps:        { foot: 1, cycle: 0.3 },
       rail:         { train: 1 },
       light_rail:   { train: 1 },
