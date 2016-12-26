@@ -23,7 +23,7 @@ module Mormon
 
             lat1, lon1 = node1[:lat], node1[:lon]
             lat2, lon2 = node2[:lat], node2[:lon]
-            
+
             dlat  = lat2 - lat1
             dlon  = lon2 - lon1
 
@@ -44,7 +44,7 @@ module Mormon
           end
 
           closed = [node_start]
-          
+
           # Limit for how long it will search
           (0..10000).each do
             next_item = @queue.shift
@@ -52,7 +52,7 @@ module Mormon
 
             x = next_item[:node_end]
             next if closed.include?(x)
-              
+
             # Found the end node - success
             return ['success', next_item[:nodes]] if x == node_end
 
@@ -65,18 +65,18 @@ module Mormon
 
           'gave_up'
         end
-        
+
         def enqueue(node_start, node_end, node_finish, current_queue, weight = 1)
           # Add another potential route to the queue
-          
+
           # if already in queue
           return if @queue.any? { |other| other[:node_end] == node_end }
 
           distance = distance(node_start, node_end)
-          
+
           return if weight.zero?
           distance = distance / weight
-          
+
           # Create a hash for all the route's attributes
           current_distance = current_queue[:distance]
           nodes = current_queue[:nodes].dup
@@ -88,7 +88,7 @@ module Mormon
             nodes:        nodes,
             node_end:     node_end
           }
-          
+
           # Try to insert, keeping the queue ordered by decreasing worst-case distance
           ix = @queue.find_index { |other| other[:max_distance] > queue_item[:max_distance] } || -1
           @queue.insert(ix, queue_item)
@@ -123,17 +123,17 @@ module Mormon
             if neighbors
               neighbors   = neighbors.keys.map(&:to_i)
               not_visited = neighbors - (neighbors & visited)
-              
+
               # random sort in order to not take the same order for neighbors every time.
               not_visited.sort_by { rand }.each do |neighbor|
                 # limit the width of the route go further more than max_distance the distance between start and end
-                next if distance(neighbor, node_end) > max_amplitude 
+                next if distance(neighbor, node_end) > max_amplitude
                 current_route << neighbor
                 enqueue neighbor, node_end, transport, current_route, visited, max_amplitude
                 current_route.delete neighbor
               end
             end
-            
+
             visited.delete node_start
           end
         end
@@ -143,21 +143,23 @@ module Mormon
 
 
     class Router
-      attr_reader :loader, :queue, :algorithm
+      attr_reader :loader
 
       def initialize(loader, options = {})
-        algorithm = options.delete(:algorithm) || :astar
-        algorithm_class = "Mormon::OSM::Algorithm::#{algorithm.to_s.capitalize}".constantize
-        
         @loader = loader
-        @algorithm = algorithm_class.new self, options
+        @options = options
+
+        algorithm = @options.delete(:algorithm) || :astar
+        @algorithm_class = "Mormon::OSM::Algorithm::#{algorithm.to_s.capitalize}".constantize
       end
 
       def find_route(node_start, node_end, transport)
-        result, nodes = @algorithm.route(node_start.to_i, node_end.to_i, transport.to_sym)
-        
+        algorithm = @algorithm_class.new(self, @options)
+
+        result, nodes = algorithm.route(node_start.to_i, node_end.to_i, transport.to_sym)
+
         return [result,[]] if result != 'success'
-        
+
         nodes.map! do |node|
           data = @loader.nodes[node.to_s]
           [data[:lat], data[:lon]]
@@ -165,7 +167,6 @@ module Mormon
 
         [result, nodes]
       end
-
     end
   end
 end
