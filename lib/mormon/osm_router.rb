@@ -141,27 +141,26 @@ module Mormon
       end
     end
 
-
     class Router
-      attr_reader :loader
+      attr_reader :loader, :algorithm
 
       def initialize(loader, options = {})
-        @loader = loader
+        @loader  = loader
         @options = options
 
         algorithm = @options.delete(:algorithm) || :astar
-        @algorithm_class = "Mormon::OSM::Algorithm::#{algorithm.to_s.capitalize}".constantize
+        algorithm_classname = algorithm.to_s.capitalize
+        algorithm_class = "Mormon::OSM::Algorithm::#{algorithm_classname}".constantize
+        @algorithm = algorithm_class.new(self, @options)
       end
 
       def find_route(node_start, node_end, transport)
-        algorithm = @algorithm_class.new(self, @options)
-
         result, nodes = algorithm.route(node_start.to_i, node_end.to_i, transport.to_sym)
 
         return [result,[]] if result != 'success'
 
         nodes.map! do |node|
-          data = @loader.nodes[node.to_s]
+          data = loader.nodes[node.to_s]
           [data[:lat], data[:lon]]
         end
 
